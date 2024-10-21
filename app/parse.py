@@ -1,4 +1,5 @@
 import csv
+import time
 from dataclasses import dataclass, astuple
 
 from selenium.common import TimeoutException
@@ -13,6 +14,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
 
 chrome_options = Options()
@@ -55,7 +57,7 @@ def save_to_csv(products: list[Product], file_name: str) -> None:
     with open(file_name, "w", newline='') as f:
         writer = csv.writer(f)
         writer.writerow(FIELDS)
-        writer.writerows([astuple(product) for product in products])
+        writer.writerows([astuple(product) for product in tqdm(products)])
 
 
 def parse_single_product_from_detail_page(url: str) -> Product:
@@ -94,27 +96,28 @@ def get_all_products_from_their_detail_page(main_url: str) -> list[Product]:
                     EC.element_to_be_clickable((By.CLASS_NAME, "ecomerce-items-scroll-more"))
                 )
                 more_button.click()
+                time.sleep(1)
 
             except TimeoutException:
-                print("Кнопка 'More' не знайдена або не клікабельна.")
+                print("The 'More' button was not found or is not clickable.")
                 break
 
             except Exception as e:
-                print(f"Помилка: {e}")
+                print(f"Exception: {e}")
                 break
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
         links = soup.select("a.title")
         urls = [link["href"] for link in links]
 
-    return [parse_single_product_from_detail_page(url) for url in urls]
+    return [parse_single_product_from_detail_page(url) for url in tqdm(urls)]
 
 
 def fetch_products_from_page(url: str) -> list[Product]:
     page = requests.get(url).content
     soup = BeautifulSoup(page, "html.parser")
     products_soup = soup.select(".thumbnail")
-    return [parse_single_product(product_soup) for product_soup in products_soup]
+    return [parse_single_product(product_soup) for product_soup in tqdm(products_soup)]
 
 
 def get_all_products() -> None:
